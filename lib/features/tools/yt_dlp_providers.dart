@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/command_runner.dart';
 import 'deno_checker.dart';
+import 'ffmpeg_checker.dart';
 import 'yt_dlp_checker.dart';
 
 final commandRunnerProvider = Provider<CommandRunner>((ref) => CommandRunner());
@@ -29,6 +30,18 @@ final denoCheckerProvider = Provider<DenoChecker>((ref) {
     environment: Platform.environment,
   );
 });
+
+final ffmpegCheckerProvider = Provider<FfmpegChecker>(
+  (ref) => FfmpegChecker(
+    commands: ref.watch(commandRunnerProvider),
+    environment: Platform.environment,
+  ),
+);
+
+final ffmpegCheckProvider = FutureProvider<List<MediaToolStatus>>(
+  (ref) => ref.watch(ffmpegCheckerProvider).check(),
+  retry: (_, _) => null,
+);
 
 // Check PATH immediately, then also check beside the selected Windows yt-dlp.
 // This independent result never controls whether downloads/updates are enabled.

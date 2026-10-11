@@ -12,6 +12,7 @@ class YtDlpStatus extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final check = ref.watch(ytDlpCheckProvider);
     final deno = ref.watch(denoCheckProvider);
+    final mediaTools = ref.watch(ffmpegCheckProvider);
     final theme = Theme.of(context);
     final busy = ref.watch(executionProvider.select((state) => state.isBusy));
 
@@ -81,6 +82,33 @@ class YtDlpStatus extends ConsumerWidget {
                       ),
                 error: (error, _) => Text('Deno：無法確認（選用），仍可嘗試下載。\n$error'),
               ),
+              const SizedBox(height: 8),
+              mediaTools.when(
+                skipLoadingOnRefresh: false,
+                loading: () => const Text('FFmpeg／ffprobe：檢查中…'),
+                data: (tools) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final tool in tools) ...[
+                      Text(
+                        tool.isAvailable
+                            ? '${tool.name}：已就緒（${tool.version}）'
+                            : '${tool.name}：${tool.error}',
+                      ),
+                      if (tool.executablePath != null)
+                        SelectableText(
+                          tool.executablePath!,
+                          style: theme.textTheme.bodySmall,
+                        ),
+                      const SizedBox(height: 4),
+                    ],
+                    if (tools.any((tool) => !tool.isAvailable))
+                      const Text('影音合併、音訊擷取或轉檔可能失敗，仍可嘗試下載。'),
+                  ],
+                ),
+                error: (error, _) =>
+                    Text('FFmpeg／ffprobe：無法確認，影音合併或轉檔可能失敗。\n$error'),
+              ),
             ],
           ),
         ),
@@ -91,6 +119,7 @@ class YtDlpStatus extends ConsumerWidget {
               : () {
                   ref.invalidate(ytDlpCheckProvider);
                   ref.invalidate(denoCheckProvider);
+                  ref.invalidate(ffmpegCheckProvider);
                 },
           icon: const Icon(Icons.refresh),
         ),

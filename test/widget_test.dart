@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ydf/features/download/download_form.dart';
 import 'package:ydf/features/download/download_page.dart';
+import 'package:ydf/features/tools/ffmpeg_checker.dart';
 import 'package:ydf/features/tools/yt_dlp_checker.dart';
 import 'package:ydf/features/tools/yt_dlp_providers.dart';
 import 'package:ydf/features/tools/yt_dlp_process_runner.dart';
@@ -17,8 +18,14 @@ const installation = YtDlpInstallation(
   version: '2026.10.11',
 );
 
+const readyMediaTools = [
+  MediaToolStatus(name: 'FFmpeg', version: 'ffmpeg version test'),
+  MediaToolStatus(name: 'ffprobe', version: 'ffprobe version test'),
+];
+
 Widget testApp() => ProviderScope(
   overrides: [
+    ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
     denoCheckProvider.overrideWith((ref) async => null),
     ytDlpCheckProvider.overrideWith((ref) async => installation),
   ],
@@ -26,12 +33,66 @@ Widget testApp() => ProviderScope(
 );
 
 void main() {
+  testWidgets('media checks show versions, warn on missing tools and refresh', (
+    tester,
+  ) async {
+    var checks = 0;
+    final pending = Completer<List<MediaToolStatus>>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          ytDlpCheckProvider.overrideWith((ref) async => installation),
+          denoCheckProvider.overrideWith((ref) async => null),
+          ffmpegCheckProvider.overrideWith((ref) {
+            checks++;
+            return checks == 1 ? pending.future : Future.value(readyMediaTools);
+          }),
+        ],
+        child: const MyApp(),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('FFmpeg／ffprobe：檢查中…'), findsOneWidget);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNotNull,
+    );
+    pending.complete(const [
+      MediaToolStatus(name: 'FFmpeg', version: 'ffmpeg version test'),
+      MediaToolStatus(name: 'ffprobe', error: '未找到'),
+    ]);
+    await tester.pumpAndSettle();
+    expect(find.text('FFmpeg：已就緒（ffmpeg version test）'), findsOneWidget);
+    expect(find.text('ffprobe：未找到'), findsOneWidget);
+    expect(find.textContaining('影音合併、音訊擷取或轉檔可能失敗'), findsOneWidget);
+    expect(
+      tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+      isNotNull,
+    );
+    expect(
+      tester
+          .widget<IconButton>(
+            find.widgetWithIcon(IconButton, Icons.system_update_alt),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    await tester.ensureVisible(find.byTooltip('重新檢查 yt-dlp'));
+    await tester.tap(find.byTooltip('重新檢查 yt-dlp'));
+    await tester.pumpAndSettle();
+    expect(checks, 2);
+    expect(find.text('ffprobe：已就緒（ffprobe version test）'), findsOneWidget);
+    expect(find.textContaining('影音合併、音訊擷取或轉檔可能失敗'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Deno presence is shown without affecting tool availability', (
     tester,
   ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
           ytDlpCheckProvider.overrideWith((ref) async => installation),
           denoCheckProvider.overrideWith((ref) async => r'C:\tools\deno.exe'),
         ],
@@ -54,6 +115,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
             ytDlpCheckProvider.overrideWith((ref) async => installation),
             denoCheckProvider.overrideWith((ref) => deno.future),
           ],
@@ -100,6 +162,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
           ytDlpCheckProvider.overrideWith((ref) async => installation),
           denoCheckProvider.overrideWith((ref) async {
             checks++;
@@ -137,6 +200,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
           denoCheckProvider.overrideWith((ref) async => null),
           ytDlpCheckProvider.overrideWith((ref) async => installation),
           ytDlpProcessRunnerProvider.overrideWithValue(runner),
@@ -158,6 +222,19 @@ void main() {
     await tester.pump();
     await runner.started.future;
     expect(runner.calls, 1);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 350));
+    final scroll = tester
+        .widget<SingleChildScrollView>(find.byType(SingleChildScrollView).first)
+        .controller!;
+    expect(
+      scroll.position.pixels,
+      closeTo(scroll.position.maxScrollExtent, 0.1),
+    );
+    expect(
+      find.byKey(const ValueKey('execution-status-card')).hitTestable(),
+      findsOneWidget,
+    );
     expect(
       tester
           .widget<IconButton>(
@@ -199,6 +276,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
             denoCheckProvider.overrideWith((ref) async => null),
             ytDlpCheckProvider.overrideWith((ref) async => installation),
             ytDlpProcessRunnerProvider.overrideWithValue(runner),
@@ -266,6 +344,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
             denoCheckProvider.overrideWith((ref) async => null),
             ytDlpCheckProvider.overrideWith((ref) async => installation),
             directoryPickerProvider.overrideWithValue(() async => selection),
@@ -314,6 +393,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
+            ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
             denoCheckProvider.overrideWith((ref) async => null),
             ytDlpCheckProvider.overrideWith((ref) {
               checks++;
@@ -343,6 +423,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          ffmpegCheckProvider.overrideWith((ref) async => readyMediaTools),
           denoCheckProvider.overrideWith((ref) async => null),
           ytDlpCheckProvider.overrideWith((ref) async {
             checks++;

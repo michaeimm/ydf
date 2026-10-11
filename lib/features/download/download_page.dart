@@ -23,6 +23,7 @@ class DownloadPage extends ConsumerStatefulWidget {
 class _DownloadPageState extends ConsumerState<DownloadPage> {
   late final TextEditingController _urlController;
   late final TextEditingController _directoryController;
+  final _scrollController = ScrollController();
   bool _choosingDirectory = false;
   final _formKey = GlobalKey<FormState>();
 
@@ -38,6 +39,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage> {
   void dispose() {
     _urlController.dispose();
     _directoryController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -67,6 +69,24 @@ class _DownloadPageState extends ConsumerState<DownloadPage> {
     final busy = ref.watch(executionProvider.select((state) => state.isBusy));
     final check = ref.watch(ytDlpCheckProvider);
     final ready = !check.isLoading && check.asData != null;
+    ref.listen(
+      executionProvider.select((state) => (state.kind, state.isBusy)),
+      (previous, next) {
+        if (next.$1 != ExecutionKind.download ||
+            !next.$2 ||
+            previous?.$2 == true) {
+          return;
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_scrollController.hasClients) return;
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        });
+      },
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -76,6 +96,7 @@ class _DownloadPageState extends ConsumerState<DownloadPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
+          controller: _scrollController,
           padding: const EdgeInsets.all(24),
           child: Align(
             alignment: AlignmentGeometry.topCenter,
