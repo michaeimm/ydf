@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as path;
 import 'package:ydf/core/command_runner.dart';
 import 'package:ydf/features/tools/deno_checker.dart';
 import 'package:ydf/features/tools/yt_dlp_checker.dart';
@@ -109,12 +110,21 @@ void main() {
 
   for (final platform in [CommandPlatform.macos, CommandPlatform.linux]) {
     test('finds $platform Deno in PATH', () async {
-      final deno = await place('path', 'deno');
+      // Use a relative fixture path so host drive letters cannot be mistaken
+      // for POSIX PATH separators.
+      final directory = await Directory.current.createTemp(
+        'ydf deno posix 中文 ',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final deno = await File.fromUri(directory.uri.resolve('deno'))
+          .writeAsString('fixture');
+      final entry = path.relative(directory.path).replaceAll(r'\', '/');
+      expect(entry, isNot(contains(':')));
       final checker = DenoChecker(
         platform: platform,
-        environment: {'PATH': '${root.path}/missing:${File(deno).parent.path}'},
+        environment: {'PATH': '$entry/missing:$entry'},
       );
-      expect(await checker.check(), deno);
+      expect(await checker.check(), deno.path);
     });
   }
 }
