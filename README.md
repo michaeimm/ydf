@@ -118,9 +118,20 @@ flutter build windows --release
 
 ### GitHub Actions
 
-每次 push、pull request 或手動觸發 CI 時，會在 Windows 執行靜態分析、測試與 Release 建置。CI 固定使用 Flutter `3.47.2`；升級 SDK 時請同步調整 `.github/workflows/ci.yml`。
+每次 push、pull request 或手動觸發 CI 時，會分別在 Windows 與 Ubuntu 24.04 執行靜態分析、測試與 Release 建置。CI 固定使用 Flutter `3.47.2`；升級 SDK 時請同步調整 `.github/workflows/ci.yml`。Linux 尚未完成桌面實機驗證。
 
-執行成功後，可在該次 Actions 頁面的 Artifacts 下載 `ydf-windows-x64`，保留 14 天。產物包含完整應用程式資料夾；yt-dlp、Deno 與 FFmpeg 需自行準備。CI 未設定實機整合測試的工具路徑，這些測試會略過。
+執行成功後，可在該次 Actions 頁面的 Artifacts 下載 `ydf-windows-x64` 與 `ydf-linux-x64`，保留 14 天。兩者分別包含 Windows ZIP 與 Linux tar.gz；解壓縮後需保留完整資料夾。Linux 使用 tar.gz 保留執行權限，產物位於 `build/linux/x64/release/bundle/`，並需要目標系統提供 GTK 3 等執行期函式庫。
+
+推送以 `v` 開頭的版本 tag 時，兩個平台的檢查與建置皆成功後，會自動建立 GitHub Release，附上 `ydf-windows-x64.zip` 與 `ydf-linux-x64.tar.gz`，並產生版本說明。例如，在欲發佈的提交上執行：
+
+```sh
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+一般分支 push、pull request 與手動執行只產生 Artifacts。GitHub Release 的附件不受上述 14 天保留期限影響；重新執行已發佈的 tag 不會覆寫既有 Release，發佈新版本請使用新的 tag。
+
+yt-dlp、Deno 與 FFmpeg 需自行準備。CI 未設定實機整合測試的工具路徑，這些測試會略過。
 
 ## 問題回報
 

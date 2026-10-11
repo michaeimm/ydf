@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -196,6 +197,9 @@ void main() {
   testWidgets('download action locks form and tool actions until completion', (
     tester,
   ) async {
+    final directory = Directory.systemTemp.createTempSync('ydf widget 下載 ');
+    addTearDown(() => directory.deleteSync(recursive: true));
+    final outputPath = File.fromUri(directory.uri.resolve('video.webm')).path;
     final runner = ControlledRunner();
     await tester.pumpWidget(
       ProviderScope(
@@ -215,13 +219,13 @@ void main() {
     );
     await tester.enterText(
       find.widgetWithText(TextField, '儲存資料夾'),
-      r'C:\Downloads',
+      directory.path,
     );
     await tester.ensureVisible(find.byType(FilledButton));
     await tester.tap(find.byType(FilledButton));
     await tester.pump();
-    await runner.started.future;
     expect(runner.calls, 1);
+    await runner.started.future;
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
     final scroll = tester
@@ -258,10 +262,11 @@ void main() {
     runner.emit('YDF_PROGRESS:{"downloaded_bytes":50,"total_bytes":100}');
     await tester.pump();
     expect(find.text('50.0%'), findsOneWidget);
-    runner.emit(r'YDF_FILE:C:\Downloads\video.webm');
+    runner.emit('YDF_FILE:$outputPath');
     runner.result.complete(0);
     await tester.pumpAndSettle();
     expect(find.text('下載完成'), findsOneWidget);
+    expect(find.textContaining('儲存檔案：$outputPath'), findsOneWidget);
     expect(
       tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
       isNotNull,
