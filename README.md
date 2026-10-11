@@ -115,6 +115,12 @@ flutter build windows --release
 
 建置結果位於 `build/windows/x64/runner/Release/`。分發時請保留整個輸出資料夾，包含 DLL 與 `data/` 等執行所需檔案。
 
+### GitHub Actions
+
+每次 push、pull request 或手動觸發 CI 時，會在 Windows 執行靜態分析、測試與 Release 建置。CI 固定使用 Flutter `3.47.2`；升級 SDK 時請同步調整 `.github/workflows/ci.yml`。
+
+執行成功後，可在該次 Actions 頁面的 Artifacts 下載 `ydf-windows-x64`，保留 14 天。產物包含完整應用程式資料夾；yt-dlp、Deno 與 FFmpeg 需自行準備。CI 未設定實機整合測試的工具路徑，這些測試會略過。
+
 ## 問題回報
 
 回報問題時，請提供作業系統、yt-dlp 版本、選擇的輸出格式、重現步驟，以及執行狀態區域中的相關錯誤訊息。貼上紀錄前，請先移除個人資料與不希望公開的路徑。
