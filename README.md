@@ -122,7 +122,7 @@ flutter build windows --release
 ## License
 
 ```
-Copyright 2025 少年ウィンド
+Copyright 2026 少年ウィンド
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
